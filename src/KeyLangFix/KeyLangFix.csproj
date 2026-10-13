@@ -1,0 +1,60 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <LangVersion>latest</LangVersion>
+    <Version>1.0.0</Version>
+    <AssemblyName>KeyLangFix</AssemblyName>
+    <Product>KeyLangFix</Product>
+    <AssemblyTitle>KeyLangFix</AssemblyTitle>
+    <RootNamespace>KeyLangFix</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Resources\app.ico</ApplicationIcon>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <UseSystemResourceKeys>true</UseSystemResourceKeys>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <DebuggerSupport>false</DebuggerSupport>
+    <EventSourceSupport>false</EventSourceSupport>
+    <OptimizationPreference>Size</OptimizationPreference>
+    <TieredPGO>false</TieredPGO>
+    <ServerGarbageCollector>false</ServerGarbageCollector>
+    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
+  </PropertyGroup>
+
+  <!-- Native AOT (needs the VS "Desktop development with C++" build tools):
+       dotnet publish -c Release -p:Aot=true -->
+  <!-- Runtime bundled into published builds (security patches); dev/test builds use the installed runtime. -->
+  <PropertyGroup Condition="'$(_IsPublishing)' == 'true'">
+    <RuntimeFrameworkVersion>9.0.20</RuntimeFrameworkVersion>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Aot)' == 'true'">
+    <PublishAot>true</PublishAot>
+    <StripSymbols>true</StripSymbols>
+  </PropertyGroup>
+
+  <!-- Fallback: self-contained, trimmed, single file (no C++ tools needed). -->
+  <PropertyGroup Condition="'$(Aot)' != 'true' and '$(_IsPublishing)' == 'true'">
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <PublishTrimmed>true</PublishTrimmed>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <TrimMode>full</TrimMode>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\en.ngm" LogicalName="en.ngm" />
+    <EmbeddedResource Include="Resources\he.ngm" LogicalName="he.ngm" />
+    <EmbeddedResource Include="Resources\switch.wav" LogicalName="switch.wav" />
+    <EmbeddedResource Include="Resources\icon_on.bin" LogicalName="icon_on.bin" />
+    <EmbeddedResource Include="Resources\icon_off.bin" LogicalName="icon_off.bin" />
+    <InternalsVisibleTo Include="KeyLangFix.Tests" />
+  </ItemGroup>
+
+</Project>
