@@ -21,7 +21,7 @@ internal static unsafe class TrayIcon
         get
         {
             var v = typeof(TrayIcon).Assembly.GetName().Version;
-            return v == null ? "1.0.0" : $"{v.Major}.{v.Minor}.{v.Build}";
+            return v == null ? "1.0.0" : v.Revision > 0 ? v.ToString() : $"{v.Major}.{v.Minor}.{v.Build}";
         }
     }
 
