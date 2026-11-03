@@ -1,6 +1,7 @@
 using System;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using KeyLangFix.Core;
 using KeyLangFix.Native;
 using KeyLangFix.Services;
 using KeyLangFix.Tray;
@@ -12,7 +13,7 @@ internal static unsafe class SettingsWindow
 {
     private const string ClassName = "KeyLangFixSettings";
     private const int IdLevel = 101, IdLevelText = 102, IdMin = 103, IdMinText = 104,
-        IdSound = 105, IdConvert = 106, IdAutoStart = 107, IdVolume = 108, IdVolumeText = 109, IdDefaults = 110;
+        IdSound = 105, IdConvert = 106, IdAutoStart = 107, IdVolume = 108, IdVolumeText = 109, IdDefaults = 110, IdPassword = 111, IdAbbreviations = 112;
 
     private static nint _hwnd, _font, _hInstance;
     private static bool _classRegistered;
@@ -55,7 +56,7 @@ internal static unsafe class SettingsWindow
         CreateFont();
 
         const uint style = Win32.WS_CAPTION | Win32.WS_SYSMENU;
-        var rect = new RECT { Right = S(400), Bottom = S(378) };
+        var rect = new RECT { Right = S(400), Bottom = S(412) };
         Win32.AdjustWindowRectEx(ref rect, style, false, Win32.WS_EX_CONTROLPARENT);
         int w = rect.Right - rect.Left, h = rect.Bottom - rect.Top;
         int x = (Win32.GetSystemMetrics(Win32.SM_CXSCREEN) - w) / 2;
@@ -83,11 +84,15 @@ internal static unsafe class SettingsWindow
         Label("", 300, 240, 90, 18, IdVolumeText);
         Check("Start with Windows", IdAutoStart, 16, 284, AutoStart.IsEnabled);
 
-        Button("Defaults", IdDefaults, 16, 332, false);
-        Button("OK", Win32.IDOK, 214, 332, true);
-        Button("Cancel", Win32.IDCANCEL, 304, 332, false);
+        Label("In password fields:", 16, 324, 118, 18, 0);
+        PasswordCombo(IdPassword, 138, 320, 246, (int)SettingsStore.PasswordFields);
 
-        foreach (int id in new[] { IdLevel, IdMin, IdVolume, IdSound, IdConvert, IdAutoStart, IdDefaults, Win32.IDOK, Win32.IDCANCEL })
+        Button("Defaults", IdDefaults, 16, 366, false);
+        Child("BUTTON", "Abbreviations...", Win32.BS_PUSHBUTTON | Win32.WS_TABSTOP, 102, 366, 104, 28, IdAbbreviations);
+        Button("OK", Win32.IDOK, 214, 366, true);
+        Button("Cancel", Win32.IDCANCEL, 304, 366, false);
+
+        foreach (int id in new[] { IdLevel, IdMin, IdVolume, IdSound, IdConvert, IdAutoStart, IdPassword, IdAbbreviations, IdDefaults, Win32.IDOK, Win32.IDCANCEL })
             Theme.ApplyToControl(Win32.GetDlgItem(_hwnd, id), _dark);
 
         UpdateLabels();
@@ -131,6 +136,19 @@ internal static unsafe class SettingsWindow
         Win32.SendMessage(t, Win32.TBM_SETPOS, 1, value);
     }
 
+    private static void PasswordCombo(int id, int x, int y, int w, int selected)
+    {
+        // The height includes the drop-down list.
+        nint c = Child("COMBOBOX", "", Win32.CBS_DROPDOWNLIST | Win32.WS_TABSTOP, x, y, w, 120, id);
+        foreach (var item in new[] { "Like any text box", "Never switch", "Always switch to English" })
+        {
+            nint text = Marshal.StringToHGlobalUni(item);
+            try { Win32.SendMessage(c, Win32.CB_ADDSTRING, 0, text); }
+            finally { Marshal.FreeHGlobal(text); }
+        }
+        Win32.SendMessage(c, Win32.CB_SETCURSEL, (nuint)selected, 0);
+    }
+
     private static int Pos(int id) => (int)Win32.SendMessage(Win32.GetDlgItem(_hwnd, id), Win32.TBM_GETPOS, 0, 0);
     private static bool Checked(int id) => Win32.SendMessage(Win32.GetDlgItem(_hwnd, id), Win32.BM_GETCHECK, 0, 0) != 0;
 
@@ -152,6 +170,7 @@ internal static unsafe class SettingsWindow
         Win32.SendMessage(Win32.GetDlgItem(_hwnd, IdConvert), Win32.BM_SETCHECK, SettingsStore.DefaultConvertText ? 1u : 0u, 0);
         Win32.SendMessage(Win32.GetDlgItem(_hwnd, IdSound), Win32.BM_SETCHECK, SettingsStore.DefaultPlaySound ? 1u : 0u, 0);
         Win32.SendMessage(Win32.GetDlgItem(_hwnd, IdAutoStart), Win32.BM_SETCHECK, SettingsStore.DefaultAutoStart ? 1u : 0u, 0);
+        Win32.SendMessage(Win32.GetDlgItem(_hwnd, IdPassword), Win32.CB_SETCURSEL, (nuint)(int)SettingsStore.DefaultPasswordMode, 0);
         UpdateLabels();
     }
 
@@ -162,6 +181,9 @@ internal static unsafe class SettingsWindow
         SettingsStore.ConvertText = Checked(IdConvert);
         SettingsStore.PlaySound = Checked(IdSound);
         SettingsStore.SoundVolume = Math.Clamp(Pos(IdVolume), 0, 100);
+        int mode = (int)Win32.SendMessage(Win32.GetDlgItem(_hwnd, IdPassword), Win32.CB_GETCURSEL, 0, 0);
+        SettingsStore.PasswordFields = mode is >= 0 and <= 2 ? (PasswordMode)mode : SettingsStore.DefaultPasswordMode;
+        PasswordProbe.SetEnabled(SettingsStore.PasswordFields != PasswordMode.Regular);
         SettingsStore.Save();
         AutoStart.Set(Checked(IdAutoStart));
     }
@@ -193,6 +215,7 @@ internal static unsafe class SettingsWindow
                     if (id == Win32.IDOK) { Apply(); Win32.DestroyWindow(hwnd); return 0; }
                     if (id == Win32.IDCANCEL) { Win32.DestroyWindow(hwnd); return 0; }
                     if (id == IdDefaults) { ResetControlsToDefaults(); return 0; }
+                    if (id == IdAbbreviations) { AbbreviationsWindow.ShowModal(hwnd, _font, _dpi, _dark); return 0; }
                     break;
                 case Win32.WM_CLOSE:
                     Win32.DestroyWindow(hwnd);

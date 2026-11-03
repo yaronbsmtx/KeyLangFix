@@ -18,6 +18,7 @@ internal static unsafe class Engine
     public const nuint Magic = 0x4155_4C47;
     public const nuint ConvertTimerId = 1;
     private const uint ConvertPollMs = 10;
+    private const ushort EnglishLangId = 0x09;
     private const long LayoutWaitMs = 500;
     private const long CooldownMs = 1500;
     private const long RevertWindowMs = 3000;
@@ -74,6 +75,7 @@ internal static unsafe class Engine
     private static nint _pendingHkl;
     private static nint _pendingFocus;
     private static long _pendingSince;
+    private static bool _pendingSecret;   // password text: never written to the trace
     private static readonly bool[] SwallowedDown = new bool[256];
 
     private static readonly INPUT[] InputBuf = new INPUT[2 * (WordBuffer.Capacity + 64) + 2 * 64];
@@ -128,7 +130,16 @@ internal static unsafe class Engine
             _focus = target;
             _focusIsPassword = IsPasswordField(target);
         }
-        if (_focusIsPassword) { Buf.Clear(); return false; }
+        var passwordMode = SettingsStore.PasswordFields;
+        if (passwordMode != PasswordMode.Regular)
+        {
+            if (Buf.Length == 0) PasswordProbe.Refresh();
+            if (_focusIsPassword || PasswordProbe.Masked)
+            {
+                Buf.Clear();
+                return passwordMode == PasswordMode.English && ForceEnglish(vk, scan, flags, target);
+            }
+        }
 
         uint tid = Win32.GetWindowThreadProcessId(target, out _);
         nint hkl = Win32.GetKeyboardLayout(tid);
@@ -173,6 +184,42 @@ internal static unsafe class Engine
             return true;
         }
         return false;
+    }
+
+    /// <summary>
+    /// "Always English" in a password field: if the field is not on an English layout, switch it and replay
+    /// the key there. Nothing is buffered, counted or logged. True if the key was swallowed.
+    /// </summary>
+    private static bool ForceEnglish(uint vk, uint scan, uint flags, nint target)
+    {
+        if (!IsPrintable(vk)) return false;
+        nint hkl = Win32.GetKeyboardLayout(Win32.GetWindowThreadProcessId(target, out _));
+        if (Primary(hkl) == EnglishLangId) return false;
+        nint english = FindLayout(EnglishLangId);
+        nint fg = Win32.GetForegroundWindow();
+        if (english == 0 || fg == 0) return false;
+
+        Win32.PostMessage(fg, Win32.WM_INPUTLANGCHANGEREQUEST, 0, english);
+        _pendingBack = 0;
+        _pendingFocus = target;
+        _pendingSince = Environment.TickCount64;
+        _pendingSecret = true;
+        PendingText.Clear();
+        PendingKeys.Clear();
+        PendingKeys.Add((ScanOf(scan, flags), IsDown(Win32.VK_SHIFT)));
+        _pendingHkl = english;
+        _pending = true;
+        Win32.SetTimer(MainWindow, ConvertTimerId, ConvertPollMs, 0);
+        SwallowedDown[vk] = true;
+        return true;
+    }
+
+    private static nint FindLayout(ushort langId)
+    {
+        var list = new nint[16];
+        int n = Win32.GetKeyboardLayoutList(list.Length, list);
+        for (int i = 0; i < n; i++) if (Primary(list[i]) == langId) return list[i];
+        return 0;
     }
 
     /// <summary>True if a conversion was scheduled and the current key must be swallowed.</summary>
@@ -277,7 +324,7 @@ internal static unsafe class Engine
     {
         Win32.KillTimer(MainWindow, ConvertTimerId);
         _pending = false;
-        Dbg($"CONVERT back={_pendingBack} text='{PendingText}' layoutReady={layoutReady} waited={Environment.TickCount64 - _pendingSince}ms");
+        Dbg($"CONVERT back={_pendingBack} text='{(_pendingSecret ? "(masked)" : PendingText.ToString())}' layoutReady={layoutReady} waited={Environment.TickCount64 - _pendingSince}ms");
 
         // Replay the physical keys (scan codes) now that the app is on the target layout. To the
         // app this is indistinguishable from the user typing, unlike injected Unicode characters,
@@ -304,6 +351,7 @@ internal static unsafe class Engine
         if (shiftDown) InputBuf[n++] = ScanKey(0x2A, true);
         PendingKeys.Clear();
         PendingText.Clear();
+        _pendingSecret = false;
         if (n == 0) return;
         fixed (INPUT* p = InputBuf) Win32.SendInput((uint)n, p, sizeof(INPUT));
     }
@@ -331,6 +379,7 @@ internal static unsafe class Engine
     {
         if (!_pending) return;
         _pending = false;
+        _pendingSecret = false;
         PendingText.Clear();
         PendingKeys.Clear();
         Win32.KillTimer(MainWindow, ConvertTimerId);

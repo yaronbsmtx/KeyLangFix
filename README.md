@@ -40,6 +40,8 @@ Right-click the icon:
 | Rewrite the text already typed | When on, the text typed before the switch is deleted and retyped in the correct language. When off, only the layout changes. |
 | Play a sound | Plays a short tone on every automatic switch. |
 | Sound volume | 0 to 100%. Releasing the slider plays a preview. |
+| In password fields | What to do in password (masked) fields. *Like any text box*: normal detection and switching. *Never switch* (default): nothing is detected, switched or rewritten. *Always switch to English*: on the first key in a password field the layout is changed to English and that key is typed in English; nothing is rewritten. The layout stays English when you leave the field. Needs an English layout to be installed. |
+| Abbreviations... | Opens a list of words that are always typed as they are, such as `ctrl`, `dll` or `msg`, however the other layout reads them. One entry per line, any case. A built-in list is used until you press OK in that window; *Reset to defaults* restores it. |
 | Start with Windows | Adds or removes a per-user startup entry (no administrator rights needed). |
 | Defaults | Puts the factory defaults into the window. Nothing is saved until you press OK. |
 
@@ -50,6 +52,7 @@ If you switch the layout back by hand within a few seconds of an automatic switc
 Everything is under `%APPDATA%\KeyLangFix`:
 
 - `settings.ini` - your settings
+- `abbreviations.txt` - your abbreviation list (created when you save it in the Abbreviations window)
 - `stats.ini` - switch counters (the first-launch date, the total, and daily counts for the last two weeks)
 
 Typed text is never saved. The program keeps only the last few words in memory, and clears them when you click, move the cursor, change window or press a shortcut.
@@ -70,7 +73,7 @@ Some details that affect behaviour:
 ## Limitations
 
 - Windows does not let a program see the keystrokes of an application running as administrator unless it is also running as administrator. KeyLangFix does not do that, so it will not act in elevated windows.
-- Password boxes are skipped when they use the standard Windows edit control. Other kinds of password fields cannot be recognised.
+- Password fields are recognised through the standard Windows edit control and through UI Automation (browsers, WPF, UWP/WinUI, Electron). Browsers only expose this after an accessibility client asks, so the first password field after a browser starts may be missed. The very first key typed in a field can also arrive before the check has finished; in "Always switch to English" mode that key is then typed on the current layout. If the answer is not available, the field is treated as an ordinary text box.
 - Only the text typed since the last click, cursor movement or window change is rewritten (at most about 48 characters). It does not read or rewrite the rest of the text box.
 - A few applications ignore the request to change layout, and applications with autocorrect or an input-method editor may treat the rewrite differently.
 - The statistical models are approximate. On the project's own word lists, at the default confidence, about 84 to 86 percent of words typed on the wrong layout are caught, and about 0.3 to 0.6 percent of correctly typed words are switched by mistake. Real typing will differ.

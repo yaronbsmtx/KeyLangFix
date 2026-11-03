@@ -55,6 +55,18 @@ internal sealed class NgramModel
         return new NgramModel(langId, new string(chars), table, words, prefixes);
     }
 
+    /// <summary>
+    /// Lowest average log-probability (nats per scored event) that still reads as a word of this language.
+    /// Calibrated as the 5th percentile over held-out real words (tests/.../data/heldout.*.txt); words
+    /// still being typed score lower than finished ones. Unknown languages have no floor.
+    /// </summary>
+    public double PlausibleFloor(bool complete) => LangId switch
+    {
+        0x09 => complete ? -3.33 : -3.61,
+        0x0D => complete ? -3.23 : -3.66,
+        _ => double.NegativeInfinity,
+    };
+
     public static char Normalize(char c)
     {
         c = char.ToLowerInvariant(c);

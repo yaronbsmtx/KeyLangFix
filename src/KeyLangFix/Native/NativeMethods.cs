@@ -142,8 +142,11 @@ internal static partial class Win32
     public const uint WS_OVERLAPPED = 0x00000000, WS_POPUP = 0x80000000, WS_CHILD = 0x40000000, WS_VISIBLE = 0x10000000,
         WS_CAPTION = 0x00C00000, WS_SYSMENU = 0x00080000, WS_TABSTOP = 0x00010000, WS_GROUP = 0x00020000,
         WS_EX_CONTROLPARENT = 0x10000;
+    public const uint WS_VSCROLL = 0x00200000, WS_BORDER = 0x00800000;
+    public const uint ES_MULTILINE = 4, ES_AUTOVSCROLL = 0x40, ES_WANTRETURN = 0x1000, WM_CTLCOLOREDIT = 0x0133;
     public const uint BS_PUSHBUTTON = 0, BS_DEFPUSHBUTTON = 1, BS_AUTOCHECKBOX = 3;
     public const uint BM_GETCHECK = 0x00F0, BM_SETCHECK = 0x00F1;
+    public const uint CBS_DROPDOWNLIST = 3, CB_GETCURSEL = 0x0147, CB_ADDSTRING = 0x0143, CB_SETCURSEL = 0x014E;
     public const uint TBM_GETPOS = 0x0400, TBM_SETPOS = 0x0405, TBM_SETRANGE = 0x0406, TBM_SETPAGESIZE = 0x0415,
         TBS_AUTOTICKS = 1;
     public const uint ICC_BAR_CLASSES = 0x4;
@@ -209,6 +212,9 @@ internal static partial class Win32
     [LibraryImport(User32)] [return: MarshalAs(UnmanagedType.Bool)] public static partial bool ShowWindow(nint hWnd, int cmd);
     [LibraryImport(User32)] [return: MarshalAs(UnmanagedType.Bool)] public static partial bool SetForegroundWindow(nint hWnd);
     [LibraryImport(User32)] public static partial nint SetFocus(nint hWnd);
+    [LibraryImport(User32)] [return: MarshalAs(UnmanagedType.Bool)] public static partial bool EnableWindow(nint hWnd, [MarshalAs(UnmanagedType.Bool)] bool enable);
+    [LibraryImport(User32, EntryPoint = "GetWindowTextLengthW")] public static partial int GetWindowTextLength(nint hWnd);
+    [LibraryImport(User32, EntryPoint = "GetWindowTextW")] public static unsafe partial int GetWindowText(nint hWnd, char* buf, int max);
     [LibraryImport(User32)] public static partial nint GetDlgItem(nint hDlg, int id);
     [LibraryImport(User32, EntryPoint = "SetWindowTextW", StringMarshalling = StringMarshalling.Utf16)] [return: MarshalAs(UnmanagedType.Bool)] public static partial bool SetWindowText(nint hWnd, string text);
     [LibraryImport(User32, EntryPoint = "RegisterWindowMessageW", StringMarshalling = StringMarshalling.Utf16)] public static partial uint RegisterWindowMessage(string name);

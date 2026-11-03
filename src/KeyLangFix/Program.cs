@@ -25,6 +25,7 @@ internal static unsafe class Program
         SettingsStore.MigrateFromAutoLang();
         SettingsStore.Load();
         StatsStore.Load();
+        Abbreviations.Load();
         SoundPlayer.Init();
         Theme.EnableThemedMenus();
         _ = Detection.Models.All;   // load models once, up front
@@ -47,6 +48,7 @@ internal static unsafe class Program
         Engine.MainWindow = hwnd;
         TrayIcon.Create(hwnd);
         HookManager.Install();
+        PasswordProbe.SetEnabled(SettingsStore.PasswordFields != PasswordMode.Regular);
         if (Environment.GetCommandLineArgs().Length > 1 && Environment.GetCommandLineArgs()[1] == "--settings") SettingsWindow.Show();
         HookManager.LastCallTick = (uint)Environment.TickCount;
         Win32.SetTimer(hwnd, WatchdogTimerId, 4000, 0);
@@ -58,6 +60,7 @@ internal static unsafe class Program
             Win32.DispatchMessage(ref msg);
         }
 
+        PasswordProbe.SetEnabled(false);
         HookManager.Uninstall();
         TrayIcon.Remove();
     }

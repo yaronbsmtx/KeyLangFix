@@ -121,6 +121,57 @@ public class DetectorTests
         Assert.False(FalseSwitch(text, hebrew, Opt()));
     }
 
+    [Theory]
+    [InlineData(true, "אבגדהוזחטיכלמנסעפצקרשת")]
+    [InlineData(false, "abcdefghijklmnopqrstuvwxyz")]
+    public void Implausible_target_reading_never_switches(bool hebrew, string alphabet)
+    {
+        // A finished string that is no word of the target language and scores below that language's
+        // plausibility floor must not be rewritten, even though it beats the (also bad) current reading.
+        // Example: "msmq" typed on the English layout reads "צדצ/".
+        var curModel = hebrew ? En : He;
+        var altModel = hebrew ? He : En;
+        var rnd = new Random(1234);
+        var opt = Opt(1, 3);
+        int implausible = 0;
+        for (int i = 0; i < 4000; i++)
+        {
+            var w = new string(Enumerable.Range(0, rnd.Next(4, 7)).Select(_ => alphabet[rnd.Next(alphabet.Length)]).ToArray());
+            if (altModel.IsWord(w)) continue;
+            double s = altModel.Score(w, true, out int n, out _);
+            if (s / n >= altModel.PlausibleFloor(true)) continue;
+            implausible++;
+            var cur = new string(w.Select(c => hebrew ? Kb.ToEn(c) : Kb.ToHe(c)).ToArray());
+            Assert.False(Detector.Evaluate(curModel, altModel, cur, w, true, opt).Switch, w);
+        }
+        Assert.True(implausible > 100, "test needs implausible samples");
+    }
+
+    [Theory]
+    [InlineData("ctrl")]
+    [InlineData("CTRL")]
+    [InlineData("dll")]
+    public void Listed_abbreviations_are_typed_as_they_are(string typed)
+    {
+        // "ctrl" reads as the Hebrew word-like "בארך" on the Hebrew layout; the abbreviation list keeps it.
+        Assert.True(KeyLangFix.Services.Abbreviations.Matches(typed, true));
+        Assert.False(FalseSwitch(typed + " ", false, Opt(1, 3)));
+        var buf = new WordBuffer();
+        foreach (char c in typed)
+        {
+            buf.Add(c, En, new[] { Kb.ToHe(char.ToLower(c)) }, new[] { He });
+            Assert.False(Detector.Evaluate(En, He, buf.Cur, buf.Alt(0), false, Opt(1, 3)).Switch);
+        }
+    }
+
+    [Fact]
+    public void Abbreviation_prefix_only_counts_while_typing()
+    {
+        Assert.True(KeyLangFix.Services.Abbreviations.Matches("ctr", false));
+        Assert.False(KeyLangFix.Services.Abbreviations.Matches("ctr", true));
+        Assert.False(KeyLangFix.Services.Abbreviations.Matches("bang", true));
+    }
+
     [Fact]
     public void Stats_heldout_words()
     {

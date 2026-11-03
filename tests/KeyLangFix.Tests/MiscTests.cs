@@ -9,6 +9,18 @@ namespace KeyLangFix.Tests;
 public class MiscTests
 {
     [Theory]
+    [InlineData("regular", "Regular")]
+    [InlineData("English", "English")]
+    [InlineData(" never ", "Never")]
+    [InlineData("", "Never")]
+    [InlineData("garbage", "Never")]
+    public void Password_mode_parsing(string value, string expected)
+    {
+        Assert.Equal(expected, SettingsStore.ParsePasswordMode(value).ToString());
+        Assert.Equal("Never", SettingsStore.DefaultPasswordMode.ToString());
+    }
+
+    [Theory]
     [InlineData("2026-10-12", "2026-10-12")] // Monday
     [InlineData("2026-10-14", "2026-10-12")]
     [InlineData("2026-10-18", "2026-10-12")] // Sunday

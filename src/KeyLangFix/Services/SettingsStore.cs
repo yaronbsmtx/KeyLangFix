@@ -4,10 +4,14 @@ using System.IO;
 
 namespace KeyLangFix.Services;
 
+/// <summary>What to do while the focused field is a password (masked) field.</summary>
+internal enum PasswordMode { Regular, Never, English }
+
 /// <summary>User settings in %APPDATA%\KeyLangFix\settings.ini (key=value lines).</summary>
 internal static class SettingsStore
 {
     public const int DefaultConfidenceLevel = 3, DefaultMinLetters = 4, DefaultSoundVolume = 40;
+    public const PasswordMode DefaultPasswordMode = PasswordMode.Never;
     public const bool DefaultPlaySound = true, DefaultConvertText = true, DefaultAutoStart = false;
 
     public static bool Enabled = true;
@@ -18,6 +22,8 @@ internal static class SettingsStore
     /// <summary>Switch-sound volume, 0-100 (100 = the full level of the embedded WAV).</summary>
     public static int SoundVolume = DefaultSoundVolume;
     public static bool ConvertText = DefaultConvertText;
+    /// <summary>Regular: like any text box. Never: no switching. English: switch to English on the first key.</summary>
+    public static PasswordMode PasswordFields = DefaultPasswordMode;
 
     public static string Directory => System.IO.Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "KeyLangFix");
@@ -57,6 +63,7 @@ internal static class SettingsStore
                     case "sound": PlaySound = v != "0"; break;
                     case "volume": SoundVolume = Math.Clamp(Parse(v, 40), 0, 100); break;
                     case "convert": ConvertText = v != "0"; break;
+                    case "passwordFields": PasswordFields = ParsePasswordMode(v); break;
                 }
             }
         }
@@ -75,10 +82,18 @@ internal static class SettingsStore
                 ("sound", PlaySound ? "1" : "0"),
                 ("volume", SoundVolume.ToString()),
                 ("convert", ConvertText ? "1" : "0"),
+                ("passwordFields", PasswordFields.ToString().ToLowerInvariant()),
             });
         }
         catch { /* read-only profile: settings stay in memory */ }
     }
+
+    internal static PasswordMode ParsePasswordMode(string v) => v.Trim().ToLowerInvariant() switch
+    {
+        "regular" => PasswordMode.Regular,
+        "english" => PasswordMode.English,
+        _ => DefaultPasswordMode,
+    };
 
     private static int Parse(string s, int fallback) => int.TryParse(s, out var n) ? n : fallback;
 }

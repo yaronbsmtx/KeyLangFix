@@ -1,4 +1,5 @@
 using System;
+using KeyLangFix.Services;
 
 namespace KeyLangFix.Detection;
 
@@ -44,6 +45,7 @@ internal static class Detector
         int cntAlt = 0, cntCur = 0, letters = 0, start = n, words = 0;
         int end = n;
         bool first = true;
+        double lastAltAvg = 0;
         while (end > 0 && words < MaxRunWords)
         {
             // trim separators after the word
@@ -69,6 +71,9 @@ internal static class Detector
             if (first)
             {
                 if (la < 2) return Verdict.None;
+                if (na > 0) lastAltAvg = ca / na;
+                // A listed abbreviation (ctrl, dll, ...) is typed as it is, however the other layout reads it.
+                if (Abbreviations.Matches(cw, complete)) return Verdict.None;
                 // What is typed is a real word, or still the start of one, in the current layout:
                 // keep waiting rather than switch ("נשמ" is "ban" but also the start of "נשמע").
                 if (cw.Length >= (complete ? 2 : 3) && (complete ? cur.IsWord(cw) : cur.IsWordOrPrefix(cw))) return Verdict.None;
@@ -130,6 +135,17 @@ internal static class Detector
         // switched on the strength of earlier short words. At a word boundary the leading words help.
         int counted = lastComplete ? letters + extLetters : letters;
         if ((letters < Math.Min(3, opt.MinLetters) && !shortTail) || counted < opt.MinLetters) return Verdict.None;
+
+        // The target reading must also look like a word of its own language in absolute terms, not just
+        // better than the current reading: "msmq" typed on the Hebrew layout reads "צדצ/", which beats the
+        // English reading but is no more Hebrew than "msmq" is English. A listed word is exempt.
+        if (lastAltAvg < alt.PlausibleFloor(lastComplete))
+        {
+            var altLetters = lastAlt;
+            while (altLetters.Length > 0 && !alt.IsLetter(altLetters[^1])) altLetters = altLetters[..^1];
+            while (altLetters.Length > 0 && !alt.IsLetter(altLetters[0])) altLetters = altLetters[1..];
+            if (!alt.IsWord(altLetters)) return Verdict.None;
+        }
 
         double total = sumAlt / cntAlt - sumCur / cntCur;
         // Bonus applies per word above; for the run use the last word's bonus too.
