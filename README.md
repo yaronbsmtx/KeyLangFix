@@ -42,6 +42,8 @@ Right-click the icon:
 | Sound volume | 0 to 100%. Releasing the slider plays a preview. |
 | In password fields | What to do in password (masked) fields. *Like any text box*: normal detection and switching. *Never switch* (default): nothing is detected, switched or rewritten. *Always switch to English*: on the first key in a password field the layout is changed to English and that key is typed in English; nothing is rewritten. The layout stays English when you leave the field. Needs an English layout to be installed. |
 | Abbreviations... | Opens a list of words that are always typed as they are, such as `ctrl`, `dll` or `msg`, however the other layout reads them. One entry per line, any case. A built-in list is used until you press OK in that window; *Reset to defaults* restores it. |
+| Wrong-word detection time | 1 to 10 seconds. If you switch the language back within this time after an automatic switch, the word you were typing is added, unapproved, to the learned-words lists. The switch back is noticed on your next keystroke. |
+| Learned words... | Opens the two lists (Hebrew and English, by the layout the word was typed on). Check a word to approve it: the app then leaves it, and words starting with it, as typed. Unchecked words are ignored. *Delete selected* removes entries. |
 | Start with Windows | Adds or removes a per-user startup entry (no administrator rights needed). |
 | Defaults | Puts the factory defaults into the window. Nothing is saved until you press OK. |
 
@@ -53,6 +55,7 @@ Everything is under `%APPDATA%\KeyLangFix`:
 
 - `settings.ini` - your settings
 - `abbreviations.txt` - your abbreviation list (created when you save it in the Abbreviations window)
+- `learned-he.txt`, `learned-en.txt` - learned words, one `1|word` (approved) or `0|word` per line
 - `stats.ini` - switch counters (the first-launch date, the total, and daily counts for the last two weeks)
 
 Typed text is never saved. The program keeps only the last few words in memory, and clears them when you click, move the cursor, change window or press a shortcut.

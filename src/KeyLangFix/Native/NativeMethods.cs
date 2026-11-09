@@ -115,6 +115,27 @@ internal struct INITCOMMONCONTROLSEX
     public uint dwICC;
 }
 
+[StructLayout(LayoutKind.Sequential)]
+internal struct LVITEMW
+{
+    public uint mask;
+    public int iItem, iSubItem;
+    public uint state, stateMask;
+    public nint pszText;
+    public int cchTextMax, iImage;
+    public nint lParam;
+    public int iIndent;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+internal struct LVCOLUMNW
+{
+    public uint mask;
+    public int fmt, cx;
+    public nint pszText;
+    public int cchTextMax, iSubItem, iImage, iOrder;
+}
+
 internal static partial class Win32
 {
     // Messages
@@ -149,8 +170,18 @@ internal static partial class Win32
     public const uint CBS_DROPDOWNLIST = 3, CB_GETCURSEL = 0x0147, CB_ADDSTRING = 0x0143, CB_SETCURSEL = 0x014E;
     public const uint TBM_GETPOS = 0x0400, TBM_SETPOS = 0x0405, TBM_SETRANGE = 0x0406, TBM_SETPAGESIZE = 0x0415,
         TBS_AUTOTICKS = 1;
-    public const uint ICC_BAR_CLASSES = 0x4;
+    public const uint ICC_BAR_CLASSES = 0x4, ICC_LISTVIEW_CLASSES = 0x1;
     public const uint SS_LEFT = 0;
+    public const uint WS_EX_CLIENTEDGE = 0x200;
+
+    // List view (report mode with check boxes)
+    public const uint LVS_REPORT = 1, LVS_NOCOLUMNHEADER = 0x4000;
+    public const uint LVM_SETBKCOLOR = 0x1001, LVM_GETITEMCOUNT = 0x1004, LVM_DELETEITEM = 0x1008, LVM_SETCOLUMNWIDTH = 0x101E,
+        LVM_SETTEXTCOLOR = 0x1024, LVM_SETTEXTBKCOLOR = 0x1026, LVM_SETITEMSTATE = 0x102B, LVM_GETITEMSTATE = 0x102C,
+        LVM_SETEXTENDEDLISTVIEWSTYLE = 0x1036, LVM_INSERTCOLUMNW = 0x1061, LVM_INSERTITEMW = 0x104D;
+    public const uint LVS_EX_CHECKBOXES = 0x4, LVS_EX_FULLROWSELECT = 0x20;
+    public const uint LVIF_TEXT = 1, LVCF_WIDTH = 2;
+    public const uint LVIS_SELECTED = 2, LVIS_STATEIMAGEMASK = 0xF000;
 
     public const int IDOK = 1, IDCANCEL = 2;
     public const int SW_HIDE = 0, SW_SHOW = 5, SW_RESTORE = 9;

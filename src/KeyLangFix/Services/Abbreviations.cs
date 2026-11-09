@@ -102,7 +102,7 @@ internal static class Abbreviations
     }
 
     /// <summary>Case-insensitive, and Hebrew final-form letters compare as their plain forms.</summary>
-    private static string Normalize(ReadOnlySpan<char> s)
+    internal static string Normalize(ReadOnlySpan<char> s)
     {
         Span<char> buf = s.Length <= 64 ? stackalloc char[s.Length] : new char[s.Length];
         for (int i = 0; i < s.Length; i++) buf[i] = NgramModel.Normalize(s[i]);

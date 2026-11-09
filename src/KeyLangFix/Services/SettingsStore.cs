@@ -10,7 +10,8 @@ internal enum PasswordMode { Regular, Never, English }
 /// <summary>User settings in %APPDATA%\KeyLangFix\settings.ini (key=value lines).</summary>
 internal static class SettingsStore
 {
-    public const int DefaultConfidenceLevel = 3, DefaultMinLetters = 4, DefaultSoundVolume = 40;
+    public const int DefaultConfidenceLevel = 3, DefaultMinLetters = 4, DefaultSoundVolume = 40, DefaultLearnWindowMs = 3000;
+    public const int MinLearnWindowMs = 500, MaxLearnWindowMs = 10000;
     public const PasswordMode DefaultPasswordMode = PasswordMode.Never;
     public const bool DefaultPlaySound = true, DefaultConvertText = true, DefaultAutoStart = false;
 
@@ -24,6 +25,8 @@ internal static class SettingsStore
     public static bool ConvertText = DefaultConvertText;
     /// <summary>Regular: like any text box. Never: no switching. English: switch to English on the first key.</summary>
     public static PasswordMode PasswordFields = DefaultPasswordMode;
+    /// <summary>How long after an automatic switch a switch back by the user marks the word as wrongly switched.</summary>
+    public static int LearnWindowMs = DefaultLearnWindowMs;
 
     public static string Directory => System.IO.Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "KeyLangFix");
@@ -64,6 +67,7 @@ internal static class SettingsStore
                     case "volume": SoundVolume = Math.Clamp(Parse(v, 40), 0, 100); break;
                     case "convert": ConvertText = v != "0"; break;
                     case "passwordFields": PasswordFields = ParsePasswordMode(v); break;
+                    case "learnWindowMs": LearnWindowMs = Math.Clamp(Parse(v, DefaultLearnWindowMs), MinLearnWindowMs, MaxLearnWindowMs); break;
                 }
             }
         }
@@ -83,6 +87,7 @@ internal static class SettingsStore
                 ("volume", SoundVolume.ToString()),
                 ("convert", ConvertText ? "1" : "0"),
                 ("passwordFields", PasswordFields.ToString().ToLowerInvariant()),
+                ("learnWindowMs", LearnWindowMs.ToString()),
             });
         }
         catch { /* read-only profile: settings stay in memory */ }

@@ -47,6 +47,11 @@ internal static unsafe class Engine
 
     public static nint MainWindow;
     public const uint SwitchedMessage = Win32.WM_APP + 2;
+    public const uint LearnedMessage = Win32.WM_APP + 3;
+
+    /// <summary>Words the user switched back from, waiting for the main window to persist them (UI thread only).</summary>
+    public static readonly System.Collections.Generic.Queue<(string Word, bool Hebrew)> LearnedQueue = new();
+    private const ushort HebrewLangId = 0x0D;
 
     private static readonly WordBuffer Buf = new();
 
@@ -64,6 +69,10 @@ internal static unsafe class Engine
     private static long _cooldownUntil;
     private static long _switchTick;
     private static nint _switchedFrom;
+    private static nint _switchedTo;
+    private static string? _switchedWord;      // the word as typed on the layout we switched away from
+    private static bool _switchedWordHebrew;
+    private static bool _seenTarget;           // the app really was on the new layout after the switch
     private static double _penalty;
     private static long _penaltyTick;
 
@@ -144,9 +153,10 @@ internal static unsafe class Engine
         uint tid = Win32.GetWindowThreadProcessId(target, out _);
         nint hkl = Win32.GetKeyboardLayout(tid);
         long now = Environment.TickCount64;
+        if (CheckSwitchBack(hkl, now)) AddPenalty();
         if (hkl != _bufHkl)
         {
-            if (now - _switchTick < RevertWindowMs && hkl == _switchedFrom) AddPenalty();
+            if (now - _switchTick < SettingsStore.LearnWindowMs && hkl == _switchedFrom) AddPenalty();
             Buf.Clear();
             _bufHkl = hkl;
             RefreshCandidates(hkl);
@@ -248,6 +258,10 @@ internal static unsafe class Engine
         if (fg != 0) Win32.PostMessage(fg, Win32.WM_INPUTLANGCHANGEREQUEST, 0, targetHkl);
 
         _switchedFrom = curHkl;
+        _switchedTo = targetHkl;
+        _seenTarget = false;
+        _switchedWord = LastWord(Buf.Cur.ToString());
+        _switchedWordHebrew = Primary(curHkl) == HebrewLangId;
         _switchTick = now;
         _cooldownUntil = now + CooldownMs;
 
@@ -311,6 +325,7 @@ internal static unsafe class Engine
         // Wait until the app has really changed layout, so the rewrite cannot race with it.
         uint tid = Win32.GetWindowThreadProcessId(_pendingFocus, out _);
         bool ready = tid != 0 && Win32.GetKeyboardLayout(tid) == _pendingHkl;
+        if (ready && _pendingHkl == _switchedTo) _seenTarget = true;
         if (!ready && Environment.TickCount64 - _pendingSince < LayoutWaitMs) return;
         FinishConversion(ready);
     }
@@ -460,6 +475,31 @@ internal static unsafe class Engine
     }
 
     // ---- false-positive feedback -------------------------------------------------------------
+
+    private static string? LastWord(string typed)
+    {
+        var t = typed.TrimEnd(' ');
+        t = t[(t.LastIndexOf(' ') + 1)..];
+        return t.Length >= 2 ? t : null;
+    }
+
+    /// <summary>
+    /// Called on every key with the layout the app is on now. True (once) if, within the learn window after an
+    /// automatic switch, the user is back on the old layout: that word was switched wrongly, so it is queued
+    /// for the main window to record. Detected on the next key, not at the moment of the layout change.
+    /// </summary>
+    private static bool CheckSwitchBack(nint hkl, long now)
+    {
+        if (_switchedWord == null) return false;
+        if (now - _switchTick >= SettingsStore.LearnWindowMs) { _switchedWord = null; return false; }
+        if (hkl == _switchedTo) { _seenTarget = true; return false; }
+        if (hkl != _switchedFrom || !_seenTarget) return false;
+
+        LearnedQueue.Enqueue((_switchedWord, _switchedWordHebrew));
+        _switchedWord = null;
+        Win32.PostMessage(MainWindow, LearnedMessage, 0, 0);
+        return true;
+    }
 
     private static void AddPenalty()
     {

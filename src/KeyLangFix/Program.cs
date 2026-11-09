@@ -26,6 +26,7 @@ internal static unsafe class Program
         SettingsStore.Load();
         StatsStore.Load();
         Abbreviations.Load();
+        LearnedWords.Load();
         SoundPlayer.Init();
         Theme.EnableThemedMenus();
         _ = Detection.Models.All;   // load models once, up front
@@ -90,6 +91,15 @@ internal static unsafe class Program
                 StatsStore.RecordSwitch();
                 if (SettingsStore.PlaySound) SoundPlayer.Play();
                 TrayIcon.Update();
+                return 0;
+            }
+            if (msg == Engine.LearnedMessage)
+            {
+                while (Engine.LearnedQueue.Count > 0)
+                {
+                    var (word, hebrew) = Engine.LearnedQueue.Dequeue();
+                    LearnedWords.Record(word, hebrew);
+                }
                 return 0;
             }
             switch (msg)

@@ -74,6 +74,8 @@ internal static class Detector
                 if (na > 0) lastAltAvg = ca / na;
                 // A listed abbreviation (ctrl, dll, ...) is typed as it is, however the other layout reads it.
                 if (Abbreviations.Matches(cw, complete)) return Verdict.None;
+                // Likewise a word the user has approved in the learned-words list.
+                if (LearnedWords.IsApproved(cw)) return Verdict.None;
                 // What is typed is a real word, or still the start of one, in the current layout:
                 // keep waiting rather than switch ("נשמ" is "ban" but also the start of "נשמע").
                 if (cw.Length >= (complete ? 2 : 3) && (complete ? cur.IsWord(cw) : cur.IsWordOrPrefix(cw))) return Verdict.None;

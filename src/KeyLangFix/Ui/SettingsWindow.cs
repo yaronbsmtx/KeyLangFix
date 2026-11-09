@@ -13,7 +13,8 @@ internal static unsafe class SettingsWindow
 {
     private const string ClassName = "KeyLangFixSettings";
     private const int IdLevel = 101, IdLevelText = 102, IdMin = 103, IdMinText = 104,
-        IdSound = 105, IdConvert = 106, IdAutoStart = 107, IdVolume = 108, IdVolumeText = 109, IdDefaults = 110, IdPassword = 111, IdAbbreviations = 112;
+        IdSound = 105, IdConvert = 106, IdAutoStart = 107, IdVolume = 108, IdVolumeText = 109, IdDefaults = 110, IdPassword = 111, IdAbbreviations = 112,
+        IdLearn = 113, IdLearnText = 114, IdLearned = 115;
 
     private static nint _hwnd, _font, _hInstance;
     private static bool _classRegistered;
@@ -56,7 +57,7 @@ internal static unsafe class SettingsWindow
         CreateFont();
 
         const uint style = Win32.WS_CAPTION | Win32.WS_SYSMENU;
-        var rect = new RECT { Right = S(400), Bottom = S(412) };
+        var rect = new RECT { Right = S(400), Bottom = S(508) };
         Win32.AdjustWindowRectEx(ref rect, style, false, Win32.WS_EX_CONTROLPARENT);
         int w = rect.Right - rect.Left, h = rect.Bottom - rect.Top;
         int x = (Win32.GetSystemMetrics(Win32.SM_CXSCREEN) - w) / 2;
@@ -77,22 +78,28 @@ internal static unsafe class SettingsWindow
         Trackbar(IdMin, 12, 128, 280, 32, 3, 8, SettingsStore.MinLetters);
         Label("", 300, 134, 90, 18, IdMinText);
 
-        Check("Rewrite the text already typed in the correct language", IdConvert, 16, 176, SettingsStore.ConvertText);
-        Check("Play a sound when the language is switched", IdSound, 16, 204, SettingsStore.PlaySound);
-        Label("Sound volume:", 36, 240, 90, 18, 0);
-        Trackbar(IdVolume, 124, 232, 170, 32, 0, 100, SettingsStore.SoundVolume);
-        Label("", 300, 240, 90, 18, IdVolumeText);
-        Check("Start with Windows", IdAutoStart, 16, 284, AutoStart.IsEnabled);
+        Label("Switching back within this time marks a word as wrong:", 16, 164, 368, 18, 0);
+        Trackbar(IdLearn, 12, 184, 280, 32, 1, 10, Math.Clamp((SettingsStore.LearnWindowMs + 500) / 1000, 1, 10));
+        Label("", 300, 190, 90, 18, IdLearnText);
 
-        Label("In password fields:", 16, 324, 118, 18, 0);
-        PasswordCombo(IdPassword, 138, 320, 246, (int)SettingsStore.PasswordFields);
+        Check("Rewrite the text already typed in the correct language", IdConvert, 16, 232, SettingsStore.ConvertText);
+        Check("Play a sound when the language is switched", IdSound, 16, 260, SettingsStore.PlaySound);
+        Label("Sound volume:", 36, 296, 90, 18, 0);
+        Trackbar(IdVolume, 124, 288, 170, 32, 0, 100, SettingsStore.SoundVolume);
+        Label("", 300, 296, 90, 18, IdVolumeText);
+        Check("Start with Windows", IdAutoStart, 16, 340, AutoStart.IsEnabled);
 
-        Button("Defaults", IdDefaults, 16, 366, false);
-        Child("BUTTON", "Abbreviations...", Win32.BS_PUSHBUTTON | Win32.WS_TABSTOP, 102, 366, 104, 28, IdAbbreviations);
-        Button("OK", Win32.IDOK, 214, 366, true);
-        Button("Cancel", Win32.IDCANCEL, 304, 366, false);
+        Label("In password fields:", 16, 380, 118, 18, 0);
+        PasswordCombo(IdPassword, 138, 376, 246, (int)SettingsStore.PasswordFields);
 
-        foreach (int id in new[] { IdLevel, IdMin, IdVolume, IdSound, IdConvert, IdAutoStart, IdPassword, IdAbbreviations, IdDefaults, Win32.IDOK, Win32.IDCANCEL })
+        Child("BUTTON", "Abbreviations...", Win32.BS_PUSHBUTTON | Win32.WS_TABSTOP, 16, 420, 176, 28, IdAbbreviations);
+        Child("BUTTON", "Learned words...", Win32.BS_PUSHBUTTON | Win32.WS_TABSTOP, 208, 420, 176, 28, IdLearned);
+
+        Button("Defaults", IdDefaults, 16, 462, false);
+        Button("OK", Win32.IDOK, 214, 462, true);
+        Button("Cancel", Win32.IDCANCEL, 304, 462, false);
+
+        foreach (int id in new[] { IdLevel, IdMin, IdLearn, IdVolume, IdSound, IdConvert, IdAutoStart, IdPassword, IdAbbreviations, IdLearned, IdDefaults, Win32.IDOK, Win32.IDCANCEL })
             Theme.ApplyToControl(Win32.GetDlgItem(_hwnd, id), _dark);
 
         UpdateLabels();
@@ -159,6 +166,7 @@ internal static unsafe class SettingsWindow
         Win32.SetWindowText(Win32.GetDlgItem(_hwnd, IdLevelText), names[level]);
         Win32.SetWindowText(Win32.GetDlgItem(_hwnd, IdMinText), Pos(IdMin) + " letters");
         Win32.SetWindowText(Win32.GetDlgItem(_hwnd, IdVolumeText), Pos(IdVolume) + "%");
+        Win32.SetWindowText(Win32.GetDlgItem(_hwnd, IdLearnText), Pos(IdLearn) + (Pos(IdLearn) == 1 ? " second" : " seconds"));
     }
 
     /// <summary>Puts the factory defaults into the controls. Nothing is saved until OK.</summary>
@@ -167,6 +175,7 @@ internal static unsafe class SettingsWindow
         Win32.SendMessage(Win32.GetDlgItem(_hwnd, IdLevel), Win32.TBM_SETPOS, 1, SettingsStore.DefaultConfidenceLevel);
         Win32.SendMessage(Win32.GetDlgItem(_hwnd, IdMin), Win32.TBM_SETPOS, 1, SettingsStore.DefaultMinLetters);
         Win32.SendMessage(Win32.GetDlgItem(_hwnd, IdVolume), Win32.TBM_SETPOS, 1, SettingsStore.DefaultSoundVolume);
+        Win32.SendMessage(Win32.GetDlgItem(_hwnd, IdLearn), Win32.TBM_SETPOS, 1, SettingsStore.DefaultLearnWindowMs / 1000);
         Win32.SendMessage(Win32.GetDlgItem(_hwnd, IdConvert), Win32.BM_SETCHECK, SettingsStore.DefaultConvertText ? 1u : 0u, 0);
         Win32.SendMessage(Win32.GetDlgItem(_hwnd, IdSound), Win32.BM_SETCHECK, SettingsStore.DefaultPlaySound ? 1u : 0u, 0);
         Win32.SendMessage(Win32.GetDlgItem(_hwnd, IdAutoStart), Win32.BM_SETCHECK, SettingsStore.DefaultAutoStart ? 1u : 0u, 0);
@@ -178,6 +187,7 @@ internal static unsafe class SettingsWindow
     {
         SettingsStore.ConfidenceLevel = Math.Clamp(Pos(IdLevel), 1, 5);
         SettingsStore.MinLetters = Math.Clamp(Pos(IdMin), 3, 8);
+        SettingsStore.LearnWindowMs = Math.Clamp(Pos(IdLearn), 1, 10) * 1000;
         SettingsStore.ConvertText = Checked(IdConvert);
         SettingsStore.PlaySound = Checked(IdSound);
         SettingsStore.SoundVolume = Math.Clamp(Pos(IdVolume), 0, 100);
@@ -216,6 +226,7 @@ internal static unsafe class SettingsWindow
                     if (id == Win32.IDCANCEL) { Win32.DestroyWindow(hwnd); return 0; }
                     if (id == IdDefaults) { ResetControlsToDefaults(); return 0; }
                     if (id == IdAbbreviations) { AbbreviationsWindow.ShowModal(hwnd, _font, _dpi, _dark); return 0; }
+                    if (id == IdLearned) { LearnedWordsWindow.ShowModal(hwnd, _font, _dpi, _dark); return 0; }
                     break;
                 case Win32.WM_CLOSE:
                     Win32.DestroyWindow(hwnd);
