@@ -149,4 +149,4 @@ Running with `--settings` opens the settings window at start-up.
 
 ## Status
 
-Version 1.0.0.1. No licence has been chosen yet.
+Version 1.0.0.2. No licence has been chosen yet.
