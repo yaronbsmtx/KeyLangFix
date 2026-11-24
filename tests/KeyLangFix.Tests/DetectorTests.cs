@@ -93,6 +93,56 @@ public class DetectorTests
         Assert.NotNull(Type(intended, hebrew, Opt()));
     }
 
+    /// <summary>
+    /// Like the engine with "switch only after a word is finished" on: the detector is consulted
+    /// only when the last key typed is a separator. Returns the key count at the first switch, or null.
+    /// </summary>
+    private static int? TypeGated(string typed, NgramModel cur, NgramModel alt, Func<char, char> other, DetectorOptions opt)
+    {
+        var buf = new WordBuffer();
+        Span<char> alts = stackalloc char[1];
+        int n = 0;
+        foreach (char c in typed)
+        {
+            alts[0] = other(c);
+            buf.Add(c, cur, alts, new[] { alt });
+            n++;
+            if (buf.Length == 0 || !Detector.IsWordEnd(buf.Cur)) continue;
+            if (Detector.Evaluate(cur, alt, buf.Cur, buf.Alt(0), true, opt).Switch) return n;
+        }
+        return null;
+    }
+
+    [Fact]
+    public void IsWordEnd_is_true_only_after_a_separator()
+    {
+        Assert.False(Detector.IsWordEnd(""));
+        Assert.False(Detector.IsWordEnd("abc"));
+        Assert.True(Detector.IsWordEnd("abc "));
+        Assert.True(Detector.IsWordEnd(" "));
+    }
+
+    [Fact]
+    public void Word_end_mode_does_not_switch_mid_word_on_an_english_prefix()
+    {
+        // "יוצפן" typed on the Hebrew layout: after "יוצפ" the English reading is the word "hump".
+        // Mid-word that switches; judged at the word end it does not.
+        var ungated = Type("hump", false, Opt());   // "hump" typed as "יוצפ" on Hebrew layout
+        Assert.NotNull(ungated);
+        Assert.Null(TypeGated("יוצפן ", He, En, Kb.ToEn, Opt()));
+    }
+
+    [Theory]
+    [InlineData("jk. rahn, natch gbi ")]
+    [InlineData("jk. rahn, ")]
+    public void Word_end_mode_still_switches_at_the_separator(string typed)
+    {
+        // Typed on the English layout, intended Hebrew: fires on a space, never on a letter key.
+        int? n = TypeGated(typed, En, He, Kb.ToHe, Opt());
+        Assert.NotNull(n);
+        Assert.Equal(' ', typed[n!.Value - 1]);
+    }
+
     [Fact]
     public void Short_leading_words_join_the_rewrite()
     {

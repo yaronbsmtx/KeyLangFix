@@ -14,12 +14,12 @@ namespace KeyLangFix.Ui;
 internal static unsafe class LearnedWordsWindow
 {
     private const string ClassName = "KeyLangFixLearnedWords";
-    private const int IdHebrew = 301, IdEnglish = 302, IdDeleteHe = 303, IdDeleteEn = 304;
+    private const int IdHebrew = 301, IdEnglish = 302, IdDeleteHe = 303, IdDeleteEn = 304, IdClearAll = 305;
 
     private static nint _hwnd, _font, _hInstance;
     private static bool _classRegistered, _dark;
     private static uint _dpi = 96;
-    private static readonly List<string> HeWords = new(), EnWords = new();
+    private static readonly List<LearnedEntry> HeWords = new(), EnWords = new();   // the items shown, same order
 
     private static int S(int v) => (int)(v * _dpi / 96);
 
@@ -67,9 +67,10 @@ internal static unsafe class LearnedWordsWindow
         nint enList = MakeList(IdEnglish, 246, 74);
         Child("BUTTON", "Delete selected", 0, Win32.BS_PUSHBUTTON | Win32.WS_TABSTOP, 16, 318, 130, 26, IdDeleteHe);
         Child("BUTTON", "Delete selected", 0, Win32.BS_PUSHBUTTON | Win32.WS_TABSTOP, 246, 318, 130, 26, IdDeleteEn);
+        Child("BUTTON", "Clear all", 0, Win32.BS_PUSHBUTTON | Win32.WS_TABSTOP, 16, 360, 100, 28, IdClearAll);
         Child("BUTTON", "OK", 0, Win32.BS_DEFPUSHBUTTON | Win32.WS_TABSTOP, 294, 360, 80, 28, Win32.IDOK);
         Child("BUTTON", "Cancel", 0, Win32.BS_PUSHBUTTON | Win32.WS_TABSTOP, 384, 360, 80, 28, Win32.IDCANCEL);
-        foreach (int id in new[] { IdHebrew, IdEnglish, IdDeleteHe, IdDeleteEn, Win32.IDOK, Win32.IDCANCEL })
+        foreach (int id in new[] { IdHebrew, IdEnglish, IdDeleteHe, IdDeleteEn, IdClearAll, Win32.IDOK, Win32.IDCANCEL })
             Theme.ApplyToControl(Win32.GetDlgItem(_hwnd, id), _dark);
 
         Fill(heList, LearnedWords.Hebrew, HeWords);
@@ -102,7 +103,7 @@ internal static unsafe class LearnedWordsWindow
     {
         nint lv = Child("SysListView32", "", Win32.WS_EX_CLIENTEDGE,
             Win32.LVS_REPORT | Win32.LVS_NOCOLUMNHEADER | Win32.WS_TABSTOP | Win32.WS_VSCROLL, x, y, 218, 236, id);
-        Win32.SendMessage(lv, Win32.LVM_SETEXTENDEDLISTVIEWSTYLE, 0, (nint)(Win32.LVS_EX_CHECKBOXES | Win32.LVS_EX_FULLROWSELECT));
+        Win32.SendMessage(lv, Win32.LVM_SETEXTENDEDLISTVIEWSTYLE, 0, (nint)(Win32.LVS_EX_CHECKBOXES | Win32.LVS_EX_FULLROWSELECT | Win32.LVS_EX_INFOTIP));
         var col = new LVCOLUMNW { mask = Win32.LVCF_WIDTH, cx = S(196) };
         Win32.SendMessage(lv, Win32.LVM_INSERTCOLUMNW, 0, (nint)(&col));
         if (_dark)
@@ -114,7 +115,7 @@ internal static unsafe class LearnedWordsWindow
         return lv;
     }
 
-    private static void Fill(nint lv, IReadOnlyList<LearnedEntry> entries, List<string> words)
+    private static void Fill(nint lv, IReadOnlyList<LearnedEntry> entries, List<LearnedEntry> words)
     {
         words.Clear();
         foreach (var e in entries)
@@ -125,7 +126,7 @@ internal static unsafe class LearnedWordsWindow
                 Win32.SendMessage(lv, Win32.LVM_INSERTITEMW, 0, (nint)(&item));
             }
             SetChecked(lv, words.Count, e.Approved);
-            words.Add(e.Word);
+            words.Add(e);
         }
     }
 
@@ -142,7 +143,7 @@ internal static unsafe class LearnedWordsWindow
     private static bool IsSelected(nint lv, int index) =>
         ((uint)Win32.SendMessage(lv, Win32.LVM_GETITEMSTATE, (nuint)index, (nint)Win32.LVIS_SELECTED) & Win32.LVIS_SELECTED) != 0;
 
-    private static void DeleteSelected(int listId, List<string> words)
+    private static void DeleteSelected(int listId, List<LearnedEntry> words)
     {
         nint lv = Win32.GetDlgItem(_hwnd, listId);
         for (int i = words.Count - 1; i >= 0; i--)
@@ -153,12 +154,33 @@ internal static unsafe class LearnedWordsWindow
         }
     }
 
-    private static List<LearnedEntry> Collect(int listId, List<string> words)
+    private static List<LearnedEntry> Collect(int listId, List<LearnedEntry> words)
     {
         nint lv = Win32.GetDlgItem(_hwnd, listId);
         var list = new List<LearnedEntry>(words.Count);
-        for (int i = 0; i < words.Count; i++) list.Add(new LearnedEntry(words[i], IsChecked(lv, i)));
+        for (int i = 0; i < words.Count; i++) list.Add(words[i] with { Approved = IsChecked(lv, i) });
         return list;
+    }
+
+    private static void ClearAll()
+    {
+        Win32.SendMessage(Win32.GetDlgItem(_hwnd, IdHebrew), Win32.LVM_DELETEALLITEMS, 0, 0);
+        Win32.SendMessage(Win32.GetDlgItem(_hwnd, IdEnglish), Win32.LVM_DELETEALLITEMS, 0, 0);
+        HeWords.Clear();
+        EnWords.Clear();
+    }
+
+    /// <summary>Hover tip of a word: the application it was recorded in.</summary>
+    private static void FillInfoTip(NMLVGETINFOTIPW* tip)
+    {
+        var words = (int)tip->hdr.idFrom == IdHebrew ? HeWords : EnWords;
+        if (tip->iItem < 0 || tip->iItem >= words.Count || tip->pszText == 0 || tip->cchTextMax <= 0) return;
+        string app = words[tip->iItem].App;
+        string text = app.Length == 0 ? "Recorded in: unknown application" : "Recorded in: " + app;
+        int n = Math.Min(text.Length, tip->cchTextMax - 1);
+        var dst = (char*)tip->pszText;
+        for (int i = 0; i < n; i++) dst[i] = text[i];
+        dst[n] = ' ';
     }
 
     [UnmanagedCallersOnly]
@@ -177,6 +199,10 @@ internal static unsafe class LearnedWordsWindow
                     Win32.SetTextColor((nint)wParam, Theme.DarkText);
                     Win32.SetBkColor((nint)wParam, Theme.DarkBack);
                     return Theme.DarkBrush;
+                case Win32.WM_NOTIFY:
+                    var hdr = (NMHDR*)lParam;
+                    if (hdr->code == Win32.LVN_GETINFOTIPW) FillInfoTip((NMLVGETINFOTIPW*)lParam);
+                    return 0;
                 case Win32.WM_COMMAND:
                     int id = (int)(wParam & 0xFFFF);
                     if (id == Win32.IDOK)
@@ -187,6 +213,7 @@ internal static unsafe class LearnedWordsWindow
                     }
                     if (id == Win32.IDCANCEL) { Win32.DestroyWindow(hwnd); return 0; }
                     if (id == IdDeleteHe) { DeleteSelected(IdHebrew, HeWords); return 0; }
+                    if (id == IdClearAll) { ClearAll(); return 0; }
                     if (id == IdDeleteEn) { DeleteSelected(IdEnglish, EnWords); return 0; }
                     break;
                 case Win32.WM_CLOSE:

@@ -37,13 +37,14 @@ Right-click the icon:
 |---|---|
 | Confidence | How much stronger the evidence for the other layout must be before switching. Levels run from Very low (switches eagerly, more mistakes) to Very high (switches rarely, almost no mistakes). The default is Medium. |
 | Minimum letters | How many letters of a run must be typed before a switch is allowed (3 to 8, default 4). |
+| Switch only after a word is finished | When on, the layout is never switched mid-word: the word is judged when you type a space, digit or other non-letter key. This avoids false switches where the start of a word looks like a word in the other language. Keys that are letters on the other layout (for example `.` and `,` on Hebrew) do not end a word. A word followed directly by Enter or Tab is not switched. Off by default. |
 | Rewrite the text already typed | When on, the text typed before the switch is deleted and retyped in the correct language. When off, only the layout changes. |
 | Play a sound | Plays a short tone on every automatic switch. |
 | Sound volume | 0 to 100%. Releasing the slider plays a preview. |
 | In password fields | What to do in password (masked) fields. *Like any text box*: normal detection and switching. *Never switch* (default): nothing is detected, switched or rewritten. *Always switch to English*: on the first key in a password field the layout is changed to English and that key is typed in English; nothing is rewritten. The layout stays English when you leave the field. Needs an English layout to be installed. |
 | Abbreviations... | Opens a list of words that are always typed as they are, such as `ctrl`, `dll` or `msg`, however the other layout reads them. One entry per line, any case. A built-in list is used until you press OK in that window; *Reset to defaults* restores it. |
 | Wrong-word detection time | 1 to 10 seconds. If you switch the language back within this time after an automatic switch, the word you were typing is added, unapproved, to the learned-words lists. The switch back is noticed on your next keystroke. |
-| Learned words... | Opens the two lists (Hebrew and English, by the layout the word was typed on). Check a word to approve it: the app then leaves it, and words starting with it, as typed. Unchecked words are ignored. *Delete selected* removes entries. |
+| Learned words... | Opens the two lists (Hebrew and English, by the layout the word was typed on). Check a word to approve it: the app then leaves it, and words starting with it, as typed. Unchecked words are ignored. Hover a word to see the application (executable name) it was recorded in. *Delete selected* removes entries, *Clear all* empties both lists; nothing changes until you press OK. |
 | Start with Windows | Adds or removes a per-user startup entry (no administrator rights needed). |
 | Defaults | Puts the factory defaults into the window. Nothing is saved until you press OK. |
 
@@ -55,7 +56,7 @@ Everything is under `%APPDATA%\KeyLangFix`:
 
 - `settings.ini` - your settings
 - `abbreviations.txt` - your abbreviation list (created when you save it in the Abbreviations window)
-- `learned-he.txt`, `learned-en.txt` - learned words, one `1|word` (approved) or `0|word` per line
+- `learned-he.txt`, `learned-en.txt` - learned words, one `1|word|app` (approved) or `0|word|app` per line
 - `stats.ini` - switch counters (the first-launch date, the total, and daily counts for the last two weeks)
 
 Typed text is never saved. The program keeps only the last few words in memory, and clears them when you click, move the cursor, change window or press a shortcut.

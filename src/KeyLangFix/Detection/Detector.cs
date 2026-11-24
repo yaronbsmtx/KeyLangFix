@@ -29,6 +29,12 @@ internal static class Detector
     private const int MaxRunWords = 3;
 
     /// <summary>
+    /// True if the last key in <paramref name="curText"/> is a separator (the buffer marks them with ' '),
+    /// i.e. the word before it is finished. Used by the "switch only after a word is finished" option.
+    /// </summary>
+    public static bool IsWordEnd(ReadOnlySpan<char> curText) => curText.Length > 0 && curText[^1] == ' ';
+
+    /// <summary>
     /// Decides whether the keys typed so far look like text of <paramref name="alt"/> typed on the
     /// layout of <paramref name="cur"/>. <paramref name="curText"/> and <paramref name="altText"/>
     /// have equal length (one char per key); words are separated by ' '.

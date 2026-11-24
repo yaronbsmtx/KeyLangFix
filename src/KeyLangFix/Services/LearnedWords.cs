@@ -4,13 +4,14 @@ using System.IO;
 
 namespace KeyLangFix.Services;
 
-internal readonly record struct LearnedEntry(string Word, bool Approved);
+/// <summary>A learned word, whether it is approved, and the executable (name only) it was typed in; empty if unknown.</summary>
+internal readonly record struct LearnedEntry(string Word, bool Approved, string App = "");
 
 /// <summary>
 /// Words the app switched away from and the user switched straight back (so the switch was wrong). They are
 /// collected unapproved in two lists, by the language of the layout the word was typed on, and shown in the
 /// settings. Only approved entries are left alone by the detector. Files: learned-he.txt and learned-en.txt in
-/// %APPDATA%\KeyLangFix, one "1|word" (approved) or "0|word" per line.
+/// %APPDATA%\KeyLangFix, one "1|word|app" (approved) or "0|word|app" per line (the older "1|word" form is still read).
 /// </summary>
 internal static class LearnedWords
 {
@@ -37,7 +38,7 @@ internal static class LearnedWords
     }
 
     /// <summary>Adds the word, unapproved, unless it is already listed in that language.</summary>
-    public static void Record(string word, bool hebrew)
+    public static void Record(string word, bool hebrew, string app = "")
     {
         word = word.Trim();
         if (word.Length < 2) return;
@@ -45,7 +46,7 @@ internal static class LearnedWords
         string key = Abbreviations.Normalize(word);
         foreach (var e in list)
             if (Abbreviations.Normalize(e.Word) == key) return;
-        list.Add(new LearnedEntry(word, false));
+        list.Add(new LearnedEntry(word, false, app));
         Save();
     }
 
@@ -70,6 +71,21 @@ internal static class LearnedWords
         for (int k = MinPrefix; k < key.Length; k++)
             if (_approved.Contains(key[..k])) return true;
         return false;
+    }
+
+    /// <summary>The executable name (e.g. "chrome.exe") of a process, or "" if it cannot be read.</summary>
+    public static unsafe string ExeNameOf(uint pid)
+    {
+        if (pid == 0) return "";
+        nint h = Native.Win32.OpenProcess(Native.Win32.PROCESS_QUERY_LIMITED_INFORMATION, false, pid);
+        if (h == 0) return "";
+        try
+        {
+            char* buf = stackalloc char[520];
+            uint size = 520;
+            return Native.Win32.QueryFullProcessImageName(h, 0, buf, ref size) ? Path.GetFileName(new string(buf, 0, (int)size)) : "";
+        }
+        finally { Native.Win32.CloseHandle(h); }
     }
 
     private static void Rebuild()
@@ -107,19 +123,27 @@ internal static class LearnedWords
             var t = line.Trim();
             if (t.Length == 0 || t[0] == '#') continue;
             bool approved = false;
+            string app = "";
             if (t.Length >= 2 && t[1] == '|' && (t[0] == '0' || t[0] == '1'))
             {
                 approved = t[0] == '1';
-                t = t[2..].Trim();
+                t = t[2..];
+                int bar = t.LastIndexOf('|');   // an executable name never contains '|'
+                if (bar >= 0)
+                {
+                    app = t[(bar + 1)..].Trim();
+                    t = t[..bar];
+                }
+                t = t.Trim();
             }
             if (t.Length == 0 || !seen.Add(Abbreviations.Normalize(t))) continue;
-            list.Add(new LearnedEntry(t, approved));
+            list.Add(new LearnedEntry(t, approved, app));
         }
         return list;
     }
 
     internal static IEnumerable<string> Format(IEnumerable<LearnedEntry> entries)
     {
-        foreach (var e in entries) yield return (e.Approved ? "1|" : "0|") + e.Word;
+        foreach (var e in entries) yield return (e.Approved ? "1|" : "0|") + e.Word + "|" + e.App;
     }
 }

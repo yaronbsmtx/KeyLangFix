@@ -136,6 +136,24 @@ internal struct LVCOLUMNW
     public int cchTextMax, iSubItem, iImage, iOrder;
 }
 
+[StructLayout(LayoutKind.Sequential)]
+internal struct NMHDR
+{
+    public nint hwndFrom;
+    public nuint idFrom;
+    public int code;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+internal struct NMLVGETINFOTIPW
+{
+    public NMHDR hdr;
+    public uint dwFlags;
+    public nint pszText;
+    public int cchTextMax, iItem, iSubItem;
+    public nint lParam;
+}
+
 internal static partial class Win32
 {
     // Messages
@@ -179,7 +197,10 @@ internal static partial class Win32
     public const uint LVM_SETBKCOLOR = 0x1001, LVM_GETITEMCOUNT = 0x1004, LVM_DELETEITEM = 0x1008, LVM_SETCOLUMNWIDTH = 0x101E,
         LVM_SETTEXTCOLOR = 0x1024, LVM_SETTEXTBKCOLOR = 0x1026, LVM_SETITEMSTATE = 0x102B, LVM_GETITEMSTATE = 0x102C,
         LVM_SETEXTENDEDLISTVIEWSTYLE = 0x1036, LVM_INSERTCOLUMNW = 0x1061, LVM_INSERTITEMW = 0x104D;
-    public const uint LVS_EX_CHECKBOXES = 0x4, LVS_EX_FULLROWSELECT = 0x20;
+    public const uint LVS_EX_CHECKBOXES = 0x4, LVS_EX_FULLROWSELECT = 0x20, LVS_EX_INFOTIP = 0x400;
+    public const uint LVM_DELETEALLITEMS = 0x1009, WM_NOTIFY = 0x004E;
+    public const int LVN_GETINFOTIPW = -158;
+    public const uint PROCESS_QUERY_LIMITED_INFORMATION = 0x1000;
     public const uint LVIF_TEXT = 1, LVCF_WIDTH = 2;
     public const uint LVIS_SELECTED = 2, LVIS_STATEIMAGEMASK = 0xF000;
 
@@ -276,6 +297,10 @@ internal static partial class Win32
 
     [LibraryImport("kernel32.dll", EntryPoint = "GetModuleHandleW", StringMarshalling = StringMarshalling.Utf16)]
     public static partial nint GetModuleHandle(string? name);
+    [LibraryImport("kernel32.dll")] public static partial nint OpenProcess(uint access, [MarshalAs(UnmanagedType.Bool)] bool inherit, uint pid);
+    [LibraryImport("kernel32.dll")] [return: MarshalAs(UnmanagedType.Bool)] public static partial bool CloseHandle(nint handle);
+    [LibraryImport("kernel32.dll", EntryPoint = "QueryFullProcessImageNameW")] [return: MarshalAs(UnmanagedType.Bool)]
+    public static unsafe partial bool QueryFullProcessImageName(nint handle, uint flags, char* buf, ref uint size);
     [LibraryImport("kernel32.dll", EntryPoint = "CreateMutexW", StringMarshalling = StringMarshalling.Utf16, SetLastError = true)]
     public static partial nint CreateMutex(nint attrs, [MarshalAs(UnmanagedType.Bool)] bool owner, string name);
 

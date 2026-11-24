@@ -97,8 +97,8 @@ internal static unsafe class Program
             {
                 while (Engine.LearnedQueue.Count > 0)
                 {
-                    var (word, hebrew) = Engine.LearnedQueue.Dequeue();
-                    LearnedWords.Record(word, hebrew);
+                    var (word, hebrew, pid) = Engine.LearnedQueue.Dequeue();
+                    LearnedWords.Record(word, hebrew, LearnedWords.ExeNameOf(pid));
                 }
                 return 0;
             }

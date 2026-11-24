@@ -15,6 +15,14 @@ public class LearnedWordsTests
     }
 
     [Fact]
+    public void ParseFormat_KeepsAppName_AndReadsOlderLines()
+    {
+        var entries = new[] { new LearnedEntry("Beta", false, "chrome.exe"), new LearnedEntry("a|b", true, "x.exe") };
+        Assert.Equal(entries, LearnedWords.Parse(LearnedWords.Format(entries)));
+        Assert.Equal(new LearnedEntry("old", true, ""), LearnedWords.Parse(new[] { "1|old" })[0]);
+    }
+
+    [Fact]
     public void Parse_SkipsBlankCommentsAndDuplicates_DefaultsToUnapproved()
     {
         var list = LearnedWords.Parse(new[] { "", "# c", "foo", "1|FOO", "0|bar" });

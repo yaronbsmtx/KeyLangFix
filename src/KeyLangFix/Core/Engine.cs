@@ -50,7 +50,7 @@ internal static unsafe class Engine
     public const uint LearnedMessage = Win32.WM_APP + 3;
 
     /// <summary>Words the user switched back from, waiting for the main window to persist them (UI thread only).</summary>
-    public static readonly System.Collections.Generic.Queue<(string Word, bool Hebrew)> LearnedQueue = new();
+    public static readonly System.Collections.Generic.Queue<(string Word, bool Hebrew, uint Pid)> LearnedQueue = new();
     private const ushort HebrewLangId = 0x0D;
 
     private static readonly WordBuffer Buf = new();
@@ -72,6 +72,7 @@ internal static unsafe class Engine
     private static nint _switchedTo;
     private static string? _switchedWord;      // the word as typed on the layout we switched away from
     private static bool _switchedWordHebrew;
+    private static uint _switchedPid;          // process the word was typed in
     private static bool _seenTarget;           // the app really was on the new layout after the switch
     private static double _penalty;
     private static long _penaltyTick;
@@ -186,6 +187,7 @@ internal static unsafe class Engine
             ScanOf(scan, flags), IsDown(Win32.VK_SHIFT));
 
         if (now < _cooldownUntil || Buf.Length == 0) return false;
+        if (SettingsStore.SwitchAtWordEnd && !Detector.IsWordEnd(Buf.Cur)) return false;
         if (Decide(hkl, now, target))
         {
             // The triggering key is rewritten along with the rest, so it must not reach the app
@@ -262,6 +264,7 @@ internal static unsafe class Engine
         _seenTarget = false;
         _switchedWord = LastWord(Buf.Cur.ToString());
         _switchedWordHebrew = Primary(curHkl) == HebrewLangId;
+        Win32.GetWindowThreadProcessId(target, out _switchedPid);
         _switchTick = now;
         _cooldownUntil = now + CooldownMs;
 
@@ -495,7 +498,7 @@ internal static unsafe class Engine
         if (hkl == _switchedTo) { _seenTarget = true; return false; }
         if (hkl != _switchedFrom || !_seenTarget) return false;
 
-        LearnedQueue.Enqueue((_switchedWord, _switchedWordHebrew));
+        LearnedQueue.Enqueue((_switchedWord, _switchedWordHebrew, _switchedPid));
         _switchedWord = null;
         Win32.PostMessage(MainWindow, LearnedMessage, 0, 0);
         return true;
